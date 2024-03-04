@@ -170,7 +170,9 @@ private extension FloatingNotificationBanner {
             contentView.layer.shadowPath = UIBezierPath(roundedRect: shadowRect, cornerRadius: cornerRadius).cgPath
         }
         
+        #if !os(visionOS)
         contentView.layer.rasterizationScale = UIScreen.main.scale
+        #endif
         contentView.layer.shouldRasterize = true
     }
     

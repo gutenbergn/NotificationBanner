@@ -156,15 +156,16 @@ open class BaseNotificationBanner: UIView {
     var isSuspended: Bool = false
 
     /// The main window of the application which banner views are placed on
-    private let appWindow: UIWindow? = {
-        if #available(iOS 13.0, *) {
-            return UIApplication.shared.connectedScenes
-                .first { $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive }
-                .map { $0 as? UIWindowScene }
-                .flatMap { $0?.windows.first } ?? UIApplication.shared.delegate?.window ?? UIApplication.shared.keyWindow
+    static let appWindow: UIWindow? = {
+        var windowScene = UIApplication.shared.connectedScenes
+            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene
+        
+        if windowScene == nil {
+            windowScene = UIApplication.shared.connectedScenes
+                .first(where: { $0.activationState != .unattached }) as? UIWindowScene
         }
-
-        return UIApplication.shared.delegate?.window ?? nil
+        return windowScene?.windows
+            .first(where: { $0.isKeyWindow })
     }()
 
     /// The position the notification banner should slide in from
@@ -224,11 +225,13 @@ open class BaseNotificationBanner: UIView {
     }
 
     deinit {
+        #if !os(visionOS)
         NotificationCenter.default.removeObserver(
             self,
             name: UIDevice.orientationDidChangeNotification,
             object: nil
         )
+        #endif
     }
 
     /**
@@ -299,7 +302,7 @@ open class BaseNotificationBanner: UIView {
     }
     
     internal func updateBannerPositionFrames() {
-        guard let window = appWindow else { return }
+        guard let window = Self.appWindow else { return }
         bannerPositionFrame = BannerPositionFrame(
             bannerPosition: bannerPosition,
             bannerWidth: window.width,
@@ -368,6 +371,7 @@ open class BaseNotificationBanner: UIView {
         createBannerConstraints(for: bannerPosition)
         updateBannerPositionFrames()
 
+#if !os(visionOS)
         NotificationCenter.default.removeObserver(
             self,
             name: UIDevice.orientationDidChangeNotification,
@@ -380,6 +384,7 @@ open class BaseNotificationBanner: UIView {
             name: UIDevice.orientationDidChangeNotification,
             object: nil
         )
+#endif
 
         if placeOnQueue {
             bannerQueue.addBanner(
@@ -398,14 +403,14 @@ open class BaseNotificationBanner: UIView {
             if let parentViewController = parentViewController, parentViewController.view != nil {
                 parentViewController.view.addSubview(self)
                 if statusBarShouldBeShown() {
-                    appWindow?.windowLevel = UIWindow.Level.normal
+                    Self.appWindow?.windowLevel = UIWindow.Level.normal
                 }
             } else {
-                appWindow?.addSubview(self)
+                Self.appWindow?.addSubview(self)
                 if statusBarShouldBeShown() && !(parentViewController == nil && bannerPosition == .top) {
-                    appWindow?.windowLevel = UIWindow.Level.normal
+                    Self.appWindow?.windowLevel = UIWindow.Level.normal
                 } else {
-                    appWindow?.windowLevel = UIWindow.Level.statusBar + 1
+                    Self.appWindow?.windowLevel = UIWindow.Level.statusBar + 1
                 }
             }
 
@@ -519,7 +524,11 @@ open class BaseNotificationBanner: UIView {
             return 0
         }
 
+#if !os(visionOS)
         return UIApplication.shared.statusBarFrame.height
+#else
+        return 0
+#endif
     }
 
     /**
@@ -533,7 +542,7 @@ open class BaseNotificationBanner: UIView {
         Changes the frame of the notification banner when the orientation of the device changes
     */
     @objc private dynamic func onOrientationChanged() {
-        guard let window = appWindow,
+        guard let window = Self.appWindow,
               currentDeviceOrientationIsSupportedByApp() else { return }
         
         updateSpacerViewHeight()
@@ -607,7 +616,7 @@ open class BaseNotificationBanner: UIView {
 
             self.bannerQueue.showNext(callback: { (isEmpty) in
                 if isEmpty || self.statusBarShouldBeShown() {
-                    self.appWindow?.windowLevel = UIWindow.Level.normal
+                    Self.appWindow?.windowLevel = UIWindow.Level.normal
                 }
             })
         }
@@ -668,7 +677,8 @@ open class BaseNotificationBanner: UIView {
         is supported by the current application.
      */
     private func currentDeviceOrientationIsSupportedByApp() -> Bool {
-        let supportedOrientations = UIApplication.shared.supportedInterfaceOrientations(for: appWindow)
+#if !os(visionOS)
+        let supportedOrientations = UIApplication.shared.supportedInterfaceOrientations(for: Self.appWindow)
         
         switch UIDevice.current.orientation {
         case .portrait:
@@ -682,6 +692,9 @@ open class BaseNotificationBanner: UIView {
         default:
             return false
         }
+#else
+        return true
+#endif
     }
 
     /**
@@ -692,7 +705,7 @@ open class BaseNotificationBanner: UIView {
         if let parentViewController = parentViewController {
             return parentViewController.view.frame.height
         } else {
-            return appWindow?.height ?? 0
+            return Self.appWindow?.height ?? 0
         }
     }
 
@@ -701,15 +714,23 @@ open class BaseNotificationBanner: UIView {
      */
 
     internal func shouldAdjustForDynamicIsland() -> Bool {
+#if !os(visionOS)
         return NotificationBannerUtilities.hasDynamicIsland()
             && UIApplication.shared.statusBarOrientation.isPortrait
             && (self.parentViewController?.navigationController?.isNavigationBarHidden ?? true)
+#else
+        return false
+#endif
     }
     
     internal func shouldAdjustForNotchFeaturedIphone() -> Bool {
+#if !os(visionOS)
         return NotificationBannerUtilities.isNotchFeaturedIPhone()
             && UIApplication.shared.statusBarOrientation.isPortrait
             && (self.parentViewController?.navigationController?.isNavigationBarHidden ?? true)
+#else
+        return false
+#endif
     }
     /**
         Updates the scrolling marquee label duration

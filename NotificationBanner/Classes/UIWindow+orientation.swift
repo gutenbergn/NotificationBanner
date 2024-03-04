@@ -10,6 +10,7 @@ import UIKit
 extension UIWindow {
 
     public var width: CGFloat {
+        #if !os(visionOS)
         let orientation = UIDevice.current.orientation
         switch orientation {
         case .landscapeLeft, .landscapeRight:
@@ -19,9 +20,13 @@ extension UIWindow {
         default:
             return frame.width
         }
+        #else
+        return frame.width
+        #endif
     }
 
     public var height: CGFloat {
+        #if !os(visionOS)
         let orientation = UIDevice.current.orientation
         switch orientation {
         case .landscapeLeft, .landscapeRight:
@@ -31,6 +36,9 @@ extension UIWindow {
         default:
             return frame.height
         }
+        #else
+        return frame.height
+        #endif
     }
 
 }

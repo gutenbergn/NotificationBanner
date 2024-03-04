@@ -23,7 +23,8 @@ public enum BannerHaptic {
     case medium
     case heavy
     case none
-
+    
+    #if !os(visionOS)
     @available(iOS 10.0, *)
     var impactStyle: UIImpactFeedbackGenerator.FeedbackStyle? {
         switch self {
@@ -37,6 +38,7 @@ public enum BannerHaptic {
             return nil
         }
     }
+    #endif
 }
 
 open class BannerHapticGenerator: NSObject {
@@ -46,9 +48,11 @@ open class BannerHapticGenerator: NSObject {
         -parameter haptic: The haptic strength to generate when a banner is shown
      */
     open class func generate(_ haptic: BannerHaptic) {
+        #if !os(visionOS)
         guard let style = haptic.impactStyle else { return }
         let feedbackGenerator = UIImpactFeedbackGenerator(style: style)
         feedbackGenerator.prepare()
         feedbackGenerator.impactOccurred()
+        #endif
     }
 }
